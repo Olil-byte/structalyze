@@ -1,0 +1,24 @@
+bin="../bin/structalyze"
+
+diff_check() {
+	diff <("$bin" reachability matrix < "$1") "$2" > /dev/null
+}
+
+result=0
+
+echo "REACHABILITY TESTS:"
+for input in samples/reachability/*.in; do
+	number="${input#samples/reachability/}"
+	number="${number%.in}"
+
+	output="${input%.in}.out"
+	if ! diff_check "$input" "$output"; then
+		echo "	TEST #$number WAS FAILED"
+		result=1
+	else
+		echo "	TEST #$number WAS PASSED"
+	fi
+done
+
+exit $result
+
