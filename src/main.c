@@ -1,12 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
-typedef struct matrix
-{
-	int *data;
-	int n;
-} matrix_t;
+#include "cmd.h"
+#include "matrix.h"
 
 static int read_matrix(matrix_t *matrix)
 {
@@ -53,7 +51,7 @@ static int read_matrix(matrix_t *matrix)
 			break;
 		} else {
 			result = -1;
-			goto READ_MATRIX_EPILOQUE;
+			goto EPILOQUE;
 		}
 	}
 
@@ -67,7 +65,7 @@ static int read_matrix(matrix_t *matrix)
 
 			if (j == n) {
 				result = -1;
-				goto READ_MATRIX_EPILOQUE;
+				goto EPILOQUE;
 			} else {
 				data[i * n + j] = value;
 				j += 1;
@@ -83,15 +81,15 @@ static int read_matrix(matrix_t *matrix)
 			}
 		} else {
 			result = -1;
-			goto READ_MATRIX_EPILOQUE;
+			goto EPILOQUE;
 		}
 	}
 	if (i < n) {
 		result = -1;
-		goto READ_MATRIX_EPILOQUE;
+		goto EPILOQUE;
 	}
 
-READ_MATRIX_EPILOQUE:
+EPILOQUE:
 	free(values);
 
 	if (result != -1) {
@@ -108,450 +106,494 @@ static void matrix_display(matrix_t *matrix)
 {
 	int i, j;
 	int n = matrix->n;
+	int tmp;
+	int width = 0;
 
 	for (i = 0; i < n; i++) {
 		for (j = 0; j < n; j++) {
-			printf("%d", matrix->data[i * n + j]);
+			tmp = (int)log10(matrix->data[i * n + j]) + 1;
+			if (tmp > width) {
+				width = tmp;
+			}
+		}
+	}
+
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < n; j++) {
+			printf("%-*d", width, matrix->data[i * n + j]);
 			printf(j < n - 1 ? " " : "\n");
 		}
 	}
 }
 
-static int matrix_mul(const matrix_t *a, const matrix_t *b, matrix_t *c)
+static int matrix_powers_cmd_action(int argc, void **args);
+static int matrix_reachability_cmd_action(int argc, void **args);
+static int matrix_total_paths_cmd_action(int argc, void **args);
+
+static int coeff_reachability_cmd_action(int argc, void **args);
+static int coeff_adjacency_cmd_action(int argc, void **args);
+static int coeff_redundancy_cmd_action(int argc, void **args);
+static int coeff_complexity_cmd_action(int argc, void **args);
+static int coeff_centralization_cmd_action(int argc, void **args);
+
+static void print_help(const cmd_trie_t *trie);
+
+int main(int argc, const char **argv)
 {
-	int i, j, k;
-	int n;
+	int result = 0;
 
-	int sum;
+	cmd_trie_t trie;
 
-	if (a == c || b == c) {
-		return -1;
-	}
-	if (a->n != b->n || b->n != c->n) {
-		return -1;
-	}
-	n = a->n;
+	const char *matrix_powers_cmd_path[] = {"matrix", "powers", "<n>"};
+	cmd_arg_parser_t matrix_powers_cmd_parsers[] = {0, 0, cmd_arg_parse_int}; 
+	cmd_t matrix_powers_cmd;
 
-	for (i = 0; i < n; i++) {
-		for (j = 0; j < n; j++) {
-			sum = 0;
-			for (k = 0; k < n; k++) {
-				sum += a->data[i * n + k] * b->data[k * n + j];
-			}
-			c->data[i * n + j] = sum;
+	const char *matrix_reachability_cmd_path[] = {"matrix", "reachability"};
+	cmd_arg_parser_t matrix_reachability_cmd_parsers[] = {0, 0};
+	cmd_t matrix_reachability_cmd;
+
+	const char *matrix_total_paths_cmd_path[] = {"matrix", "total-paths"};
+	cmd_arg_parser_t matrix_total_paths_cmd_parsers[] = {0, 0};
+	cmd_t matrix_total_paths_cmd;
+
+
+	const char *coeff_reachability_cmd_path[] = {"coeff", "reachability"};
+	cmd_arg_parser_t coeff_reachability_cmd_parsers[] = {0, 0};
+	cmd_t coeff_reachability_cmd;
+
+	const char *coeff_adjacency_cmd_path[] = {"coeff", "adjacency"};
+	cmd_arg_parser_t coeff_adjacency_cmd_parsers[] = {0, 0};
+	cmd_t coeff_adjacency_cmd;
+
+	const char *coeff_redundancy_cmd_path[] = {"coeff", "redundancy"};
+	cmd_arg_parser_t coeff_redundancy_cmd_parsers[] = {0, 0};
+	cmd_t coeff_redundancy_cmd;
+
+	const char *coeff_complexity_cmd_path[] = {"coeff", "complexity"};
+	cmd_arg_parser_t coeff_complexity_cmd_parsers[] = {0, 0};
+	cmd_t coeff_complexity_cmd;
+
+	const char *coeff_centralization_cmd_path[] = {"coeff", "centralization"};
+	cmd_arg_parser_t coeff_centralization_cmd_parsers[] = {0, 0};
+	cmd_t coeff_centralization_cmd;
+
+
+	cmd_trie_init(&trie);
+
+	matrix_powers_cmd.path_len = 3;
+	matrix_powers_cmd.path = matrix_powers_cmd_path;
+	matrix_powers_cmd.arg_parsers = matrix_powers_cmd_parsers;
+	matrix_powers_cmd.action = matrix_powers_cmd_action;
+
+	cmd_trie_append(&trie, &matrix_powers_cmd);
+
+	matrix_reachability_cmd.path_len = 2;
+	matrix_reachability_cmd.path = matrix_reachability_cmd_path;
+	matrix_reachability_cmd.arg_parsers = matrix_reachability_cmd_parsers;
+	matrix_reachability_cmd.action = matrix_reachability_cmd_action;
+
+	cmd_trie_append(&trie, &matrix_reachability_cmd);
+
+	matrix_total_paths_cmd.path_len = 2;
+	matrix_total_paths_cmd.path = matrix_total_paths_cmd_path;
+	matrix_total_paths_cmd.arg_parsers = matrix_total_paths_cmd_parsers;
+	matrix_total_paths_cmd.action = matrix_total_paths_cmd_action;
+
+	cmd_trie_append(&trie, &matrix_total_paths_cmd);
+
+
+	coeff_reachability_cmd.path_len = 2;
+	coeff_reachability_cmd.path = coeff_reachability_cmd_path;
+	coeff_reachability_cmd.arg_parsers = coeff_reachability_cmd_parsers;
+	coeff_reachability_cmd.action = coeff_reachability_cmd_action;
+
+	cmd_trie_append(&trie, &coeff_reachability_cmd);
+
+	coeff_adjacency_cmd.path_len = 2;
+	coeff_adjacency_cmd.path = coeff_adjacency_cmd_path;
+	coeff_adjacency_cmd.arg_parsers = coeff_adjacency_cmd_parsers;
+	coeff_adjacency_cmd.action = coeff_adjacency_cmd_action;
+
+	cmd_trie_append(&trie, &coeff_adjacency_cmd);
+
+	coeff_redundancy_cmd.path_len = 2;
+	coeff_redundancy_cmd.path = coeff_redundancy_cmd_path;
+	coeff_redundancy_cmd.arg_parsers = coeff_redundancy_cmd_parsers;
+	coeff_redundancy_cmd.action = coeff_redundancy_cmd_action;
+
+	cmd_trie_append(&trie, &coeff_redundancy_cmd);
+
+	coeff_complexity_cmd.path_len = 2;
+	coeff_complexity_cmd.path = coeff_complexity_cmd_path;
+	coeff_complexity_cmd.arg_parsers = coeff_complexity_cmd_parsers;
+	coeff_complexity_cmd.action = coeff_complexity_cmd_action;
+
+	cmd_trie_append(&trie, &coeff_complexity_cmd);
+
+	coeff_centralization_cmd.path_len = 2;
+	coeff_centralization_cmd.path = coeff_centralization_cmd_path;
+	coeff_centralization_cmd.arg_parsers = coeff_centralization_cmd_parsers;
+	coeff_centralization_cmd.action = coeff_centralization_cmd_action;
+
+	cmd_trie_append(&trie, &coeff_centralization_cmd);
+
+	/* hack for help */
+	if (argc >= 2) {
+		if (
+			strcmp(argv[1], "-h") == 0 || 
+			strcmp(argv[1], "--help") == 0
+		) {
+			print_help(&trie);
+			goto EPILOQUE;
 		}
 	}
 
-	return 0;
+	cmd_handle(&trie, argc, argv);
+
+
+EPILOQUE:
+	cmd_trie_free_children(&trie);
+
+	return result;
 }
 
-static int matrix_pow(const matrix_t *mat, int pow, matrix_t *adj)
+static int matrix_powers_cmd_action(int argc, void **args)
 {
-	int i, j;
-	int n;
+	int result = 0;
 
-	matrix_t acc, tmp;
+	int status;
 
-	int *t;
+	matrix_t matrix;
+	matrix_t result_matrix;
 
-	if (mat->n != adj->n) {
-		return -1;
-	}
-	n = mat->n;
+	void *arg = *args;
+	int power = *(int*)arg;
 
-	acc.n = n;
-	acc.data = calloc(acc.n * acc.n, sizeof(*acc.data));
-	for (i = 0; i < n; i++) {
-		acc.data[i * n + i] = 1;
-	}
+	status = read_matrix(&matrix);
+	if (status != 0) {
+		result = -1;
 
-	tmp.n = n;
-	tmp.data = malloc(tmp.n * tmp.n * sizeof(*tmp.data));
-
-	for (i = 0; i < pow; i++) {
-		matrix_mul(&acc, mat, &tmp);
-		t = acc.data;
-		acc.data = tmp.data;
-		tmp.data = t;
+		goto EPILOQUE;
 	}
 
-	for (i = 0; i < n; i++) {
-		for (j = 0; j < n; j++) {
-			adj->data[i * n + j] = acc.data[i * n + j];
-		}
-	}
+	matrix_init(&result_matrix, matrix.n);
 
-	free(acc.data);
-	free(tmp.data);
+	matrix_pow(&matrix, power, &result_matrix);
+	matrix_norm(&result_matrix);
 
-	return 0;
+	matrix_display(&result_matrix);
+
+EPILOQUE:
+	free(matrix.data);
+	free(result_matrix.data);
+
+	return result;
 }
 
-static int matrix_normalize(matrix_t *mat)
+static int matrix_reachability_cmd_action(int argc, void **args)
 {
-	int i, j;
-	int n;
+	int result = 0;
 
-	if (!mat || !mat->data) {
-		return -1;
+	int status;
+
+	matrix_t matrix;
+	matrix_t result_matrix;
+
+	status = read_matrix(&matrix);
+	if (status != 0) {
+		result = -1;
+
+		goto EPILOQUE;
 	}
-	n = mat->n;
 
-	for (i = 0; i < n; i++) {
-		for (j = 0; j < n; j++) {
-			mat->data[i * n + j] =
-				mat->data[i * n + j] > 0 ? 1 : 0;
-		}
-	}
+	matrix_init(&result_matrix, matrix.n);
 
-	return 0;
+	matrix_total_paths(&matrix, &result_matrix);
+	matrix_norm(&result_matrix);
+
+	matrix_display(&result_matrix);
+
+EPILOQUE:
+	free(matrix.data);
+	free(result_matrix.data);
+
+	return result;
 }
 
-static int matrix_sum(const matrix_t *a, const matrix_t *b, matrix_t *c)
+static int matrix_total_paths_cmd_action(int argc, void **args)
 {
-	int i, j;
-	int n;
+	int result = 0;
 
-	if (!a || !b || !c) {
-		return -1;
-	}
-	if (a->n != b->n || b->n != c->n) {
-		return -1;
-	}
-	n = a->n;
-	if (!a->data || !b->data || !c->data) {
-		return -1;
-	}
+	int status;
 
-	for (i = 0; i < n; i++) {
-		for (j = 0; j < n; j++) {
-			c->data[i * n + j] =
-				a->data[i * n + j] + b->data[i * n + j];
-		}
+	matrix_t matrix;
+	matrix_t result_matrix;
+
+	status = read_matrix(&matrix);
+	if (status != 0) {
+		result = -1;
+
+		goto EPILOQUE;
 	}
 
-	return 0;
+	matrix_init(&result_matrix, matrix.n);
+
+	matrix_total_paths(&matrix, &result_matrix);
+
+	matrix_display(&result_matrix);
+
+EPILOQUE:
+	free(matrix.data);
+	free(result_matrix.data);
+
+	return result;
 }
 
-static int matrix_count_total_routes(const matrix_t *mat, matrix_t *res)
+static int coeff_reachability_cmd_action(int argc, void **args)
 {
-	int i;
-	int n;
+	int result = 0;
 
-	matrix_t tmp;
+	int status;
 
-	if (!mat || !res) {
-		return -1;
-	}
-
-	if (mat->n != res->n) {
-		return -1;
-	}
-	n = mat->n;
-	if (!mat->data || !res->data) {
-		return -1;
-	}
-	memset(res->data, 0, n * n * sizeof(*res->data));
-
-	tmp.n = n;
-	tmp.data = malloc(tmp.n * tmp.n * sizeof(*tmp.data));
-
-	for (i = 1; i <= n; i++) {
-		matrix_pow(mat, i, &tmp);
-		matrix_sum(res, &tmp, res);
-	}
-
-	free(tmp.data);
-
-	return 0;
-}
-
-static int matrix_reachability(const matrix_t *matrix, matrix_t *result_matrix)
-{
-	if (!matrix || !matrix->data) {
-		return -1;
-	}
-	if (!result_matrix || !result_matrix->data) {
-		return -1;
-	}
-	if (matrix->n != result_matrix->n) {
-		return -1;
-	}
-
-	matrix_count_total_routes(matrix, result_matrix);
-	matrix_normalize(result_matrix);
-
-	return 0;
-}
-
-static int matrix_reachability_coef(const matrix_t *matrix, double *result)
-{
+	matrix_t matrix;
 	matrix_t tmp_matrix;
 
-	*result = 0.0;
+	double scalar_result = 0.0;
 
 	int i, j;
 	int n;
 
-	if (!matrix || !matrix->data) {
-		return -1;
-	}
-	if (!result) {
-		return -1;
-	}
-	n = matrix->n;
+	status = read_matrix(&matrix);
+	if (status != 0) {
+		result = -1;
 
-	tmp_matrix.data = malloc(n * n * sizeof(*tmp_matrix.data));
-	tmp_matrix.n = n;
+		goto EPILOQUE;
+	}
 
-	matrix_reachability(matrix, &tmp_matrix);
+	n = matrix.n;
+	matrix_init(&tmp_matrix, n);
+
+	matrix_total_paths(&matrix, &tmp_matrix);
+	matrix_norm(&tmp_matrix);
 
 	for (i = 0; i < n; i++) {
 		for (j = 0; j < n; j++) {
-			*result += tmp_matrix.data[i * n + j];
+			scalar_result += tmp_matrix.data[i * n + j];
 		}
 	}
-	*result /= (n * n);
+	scalar_result /= (n * n);
 
+	printf("%f\n", scalar_result);
+
+EPILOQUE:
+	free(matrix.data);
 	free(tmp_matrix.data);
 
-	return 0;
+	return result;
 }
 
-static int matrix_adj_coef(const matrix_t *matrix, double *result)
+static int coeff_adjacency_cmd_action(int argc, void **args)
 {
+	int result = 0;
+
+	int status;
+
+	matrix_t matrix;
+	matrix_t tmp_matrix;
+
+	double scalar_result = 0.0;
+
 	int i, j;
 	int n;
 
-	if (!matrix || !matrix->data) {
-		return -1;
-	}
-	if (!result) {
-		return -1;
-	}
-	n = matrix->n;
+	status = read_matrix(&matrix);
+	if (status != 0) {
+		result = -1;
 
-	*result = 0;
+		goto EPILOQUE;
+	}
+
+	n = matrix.n;
+	matrix_init(&tmp_matrix, n);
+
+	matrix_total_paths(&matrix, &tmp_matrix);
+	matrix_norm(&tmp_matrix);
 
 	for (i = 0; i < n; i++) {
 		for (j = 0; j < n; j++) {
-			*result += matrix->data[i * n + j] > 0 ? 1 : 0;
+			scalar_result += matrix.data[i * n + j] > 0 ? 1 : 0;
 		}
 	}
-	*result /= (n - 1);
+	scalar_result /= (n - 1);
 
-	return 0;
+
+	printf("%f\n", scalar_result);
+
+EPILOQUE:
+	free(matrix.data);
+	free(tmp_matrix.data);
+
+	return result;
 }
 
-static int matrix_redundancy_coef(const matrix_t *matrix, double *result)
+static int coeff_redundancy_cmd_action(int argc, void **args)
 {
-	if (matrix_adj_coef(matrix, result) == -1) {
-		return -1;
-	}
+	int result = 0;
 
-	*result = 1.0 - *result;
-	return 0;
-}
+	int status;
 
-static int matrix_complexity(const matrix_t *matrix, double *result)
-{
+	matrix_t matrix;
+	matrix_t tmp_matrix;
+
+	double scalar_result = 0.0;
+
 	int i, j;
 	int n;
 
-	matrix_t total_matrix;
+	status = read_matrix(&matrix);
+	if (status != 0) {
+		result = -1;
 
-	if (!matrix || !matrix->data) {
-		return -1;
+		goto EPILOQUE;
 	}
-	n = matrix->n;
 
-	total_matrix.n = n;
-	total_matrix.data = malloc(n * n * sizeof(*total_matrix.data));
+	n = matrix.n;
+	matrix_init(&tmp_matrix, n);
 
-	matrix_count_total_routes(matrix, &total_matrix);
+	matrix_total_paths(&matrix, &tmp_matrix);
+	matrix_norm(&tmp_matrix);
 
-	*result = 0;
 	for (i = 0; i < n; i++) {
 		for (j = 0; j < n; j++) {
-			*result += total_matrix.data[i * n + j];
+			scalar_result += matrix.data[i * n + j] > 0 ? 1 : 0;
 		}
 	}
-	*result /= (n * n);
+	scalar_result /= (n - 1);
+	scalar_result = scalar_result - 1.0;
 
-	return 0;
+	printf("%f\n", scalar_result);
+
+EPILOQUE:
+	free(matrix.data);
+	free(tmp_matrix.data);
+
+	return result;
 }
 
-static int matrix_centralization(const matrix_t *matrix, double *result)
+static int coeff_complexity_cmd_action(int argc, void **args)
 {
+	int result = 0;
+
+	int status;
+
+	matrix_t matrix;
+	matrix_t tmp_matrix;
+
+	double scalar_result = 0.0;
+
+	int i, j;
+	int n;
+
+	status = read_matrix(&matrix);
+	if (status != 0) {
+		result = -1;
+
+		goto EPILOQUE;
+	}
+
+	n = matrix.n;
+	matrix_init(&tmp_matrix, n);
+
+	matrix_total_paths(&matrix, &tmp_matrix);
+
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < n; j++) {
+			scalar_result += tmp_matrix.data[i * n + j];
+		}
+	}
+	scalar_result /= (n * n);
+	printf("%f\n", scalar_result);
+
+EPILOQUE:
+	free(matrix.data);
+	free(tmp_matrix.data);
+
+	return result;
+}
+
+static int coeff_centralization_cmd_action(int argc, void **args)
+{
+	int result = 0;
+
+	int status;
+
+	matrix_t matrix;
+
+	double scalar_result = 0.0;
+
 	int i, j;
 	int n;
 
 	int max_vertecies_count = 0;
 	int vertecies_count;
 
-	if (!matrix || !matrix->data) {
-		return -1;
-	}
-	n = matrix->n;
+	status = read_matrix(&matrix);
+	if (status != 0) {
+		result = -1;
 
-	*result = 0;
+		goto EPILOQUE;
+	}
+
+	n = matrix.n;
+
+	scalar_result = 0.0;
 	for (i = 0; i < n; i++) {
 		vertecies_count = 0;
 		for (j = 0; j < n; j++) {
-			if (matrix->data[i * n + j]) {
+			if (matrix.data[i * n + j]) {
 				vertecies_count += 1;
 			}
-			if (matrix->data[j * n + i]) {
+			if (matrix.data[j * n + i]) {
 				vertecies_count += 1;
 			}
 		}
-		*result += vertecies_count;
+		scalar_result += vertecies_count;
 		if (vertecies_count > max_vertecies_count) {
 			max_vertecies_count = vertecies_count;
 		}
 	}
-	*result = n * max_vertecies_count - *result;
-	*result /= (2 * (n - 1) * (n - 2));
+	scalar_result = n * max_vertecies_count - scalar_result;
+	scalar_result /= (2 * (n - 1) * (n - 2));
+	printf("%f\n", scalar_result);
 
-	return 0;
-}
-
-void print_help()
-{
-	printf(
-		"structalyze --- tool for structural analyzing thats reads a matrix from stdio\n"
-		"and prints the result to stdout\n"
-		"\n"
-		"Usage:\n"
-		"\tstructalyze adjancency matrix powers N\n"
-		"\tstructalyze reachability matrix\n"
-		"\tstructalyze total path count matrix\n"
-		"\tstructalyze reachability coefficient\n"
-		"\tstructalyze adjancency coefficient\n"
-		"\tstructalyze redundancy coefficient\n"
-		"\tstructalyze complexity\n"
-		"\tstructalyze centralization\n"
-	);
-}
-
-int main(int argc, char **argv)
-{
-	int result = 0;
-
-	long parameter;
-	char *endptr;
-
-	matrix_t matrix;
-
-	matrix_t result_matrix;
-	double scalar_result;
-
-	matrix.n = 0;
-	matrix.data = 0;
-
-	result_matrix.n = 0;
-	result_matrix.data = 0;
-	
-	if (
-		argc >= 2 &&
-		(strcmp(argv[1], "-h") || strcmp(argv[1], "--help"))
-	) {
-		print_help();
-		goto MAIN_EPILOQUE;
-	}
-
-
-	result = read_matrix(&matrix);
-	if (result == -1) {
-		goto MAIN_EPILOQUE; 
-	}
-	result_matrix.n = matrix.n;
-	result_matrix.data = malloc(
-		result_matrix.n * result_matrix.n * sizeof(*result_matrix.data)
-	);
-
-	/* parse args */
-	if (
-		argc >= 5 && 
-		strcmp(argv[1], "adjacency") == 0 &&
-		strcmp(argv[2], "matrix") == 0 &&
-		strcmp(argv[3], "powers") == 0
-	) {
-		parameter = strtol(argv[4], &endptr, 10);
-		if (*endptr != '\0') {
-			result = -1;
-			goto MAIN_EPILOQUE;
-		}
-
-		matrix_pow(&matrix, parameter, &result_matrix);
-		matrix_normalize(&result_matrix);
-
-		matrix_display(&result_matrix);
-	} else if (
-		argc >= 3 &&
-		strcmp(argv[1], "reachability") == 0 &&
-		strcmp(argv[2], "matrix") == 0
-	) {
-		matrix_reachability(&matrix, &result_matrix);
-
-		matrix_display(&result_matrix);
-	} else if (
-		argc >= 5 &&
-		strcmp(argv[1], "total") == 0 &&
-		strcmp(argv[2], "path") == 0 &&
-		strcmp(argv[3], "count") == 0 &&
-		strcmp(argv[4], "matrix") == 0
-	) {
-		matrix_count_total_routes(&matrix, &result_matrix);
-
-		matrix_display(&result_matrix);
-	} else if (
-		argc >= 3 &&
-		strcmp(argv[1], "reachability") == 0 &&
-		strcmp(argv[2], "coefficient") == 0
-	) {
-		matrix_reachability_coef(&matrix, &scalar_result);
-
-		printf("%f\n", scalar_result);
-	} else if (
-		argc >= 3 &&
-		strcmp(argv[1], "adjacency") == 0 &&
-		strcmp(argv[2], "coefficient") == 0
-	) {
-		matrix_adj_coef(&matrix, &scalar_result);
-
-		printf("%f\n", scalar_result);
-	} else if (
-		argc >= 3 &&
-		strcmp(argv[1], "redundancy") == 0 &&
-		strcmp(argv[2], "coefficient") == 0
-	) {
-		matrix_redundancy_coef(&matrix, &scalar_result);
-
-		printf("%f\n", scalar_result);
-	} else if (
-		argc >= 2 &&
-		strcmp(argv[1], "complexity") == 0
-	) {
-		matrix_complexity(&matrix, &scalar_result);
-
-		printf("%f\n", scalar_result);
-	} else if (
-		argc >= 2 &&
-		strcmp(argv[1], "centralization") == 0
-	) {
-		matrix_centralization(&matrix, &scalar_result);
-
-		printf("%f\n", scalar_result);
-	} else {
-		result = -1;
-		goto MAIN_EPILOQUE;
-	}
-
-MAIN_EPILOQUE:
+EPILOQUE:
 	free(matrix.data);
-	free(result_matrix.data);
 
 	return result;
+}
+
+const void print_help(const cmd_trie_t *trie)
+{
+	printf(
+		"structalyze - structural analysis of a matrix\n"
+		"\n"
+		"Reads a matrix from stdio and prints the result to stdout\n"
+		"\n"
+	
+		"Usage:\n"
+		"	structalyze matrix powers N\n"
+		"	structalyze matrix reachability\n"
+		"	structalyze matrix total-paths\n"
+		"\n"
+		"	structalyze coeff reachability\n"
+		"	structalyze coeff adjacency\n"
+		"	structalyze coeff redundancy\n"
+		"	structalyze coeff complexity\n"
+		"	structalyze coeff centralization\n"
+		"\n"
+		"Options:\n"
+		"	-h, --help	show this help and exit\n"
+		"\n"
+	);
 }
 
