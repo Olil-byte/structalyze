@@ -1,6 +1,7 @@
 #include "matrix.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 void matrix_init(matrix_t *matrix, int n)
 {

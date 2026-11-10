@@ -164,7 +164,7 @@ int cmd_handle(const cmd_trie_t *trie, int argc, const char** argv)
 		node = edge->node;
 	}
 	if (!node || !node->cmd) {
-		cmd_invalid_token(token, trie);
+		cmd_invalid_token("", node);
 		result = -1;
 
 		goto CMD_HANDLE_EPILOQUE;
